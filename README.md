@@ -153,7 +153,7 @@ Output:
  * Running on [http://127.0.0.1:5000](http://127.0.0.1:5000)
 ```[cite: 2]
 
-Access the interfaces in your browser:
+Access the interfaces in your browser[cite: 2]:
 - **Dashboard:** `http://localhost:5000/dashboard`[cite: 2]
 - **AI Chatbot:** `http://localhost:5000/chat`[cite: 2]
 
