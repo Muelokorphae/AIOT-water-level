@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Farm - AI Assistant</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background: #f8fafc; margin: 0; padding: 0; }
+
+        .navbar { background: #15803d; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .navbar h1 { margin: 0; font-size: 1.4rem; }
+        .nav-links a { color: #dcfce7; text-decoration: none; margin-left: 20px; font-weight: 600; padding: 6px 12px; border-radius: 6px; }
+        .nav-links a.active, .nav-links a:hover { background: #166534; color: white; }
+
+        .chat-container { max-width: 800px; margin: 30px auto; padding: 0 20px; }
+        .card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+
+        #chat-box { height: 420px; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: 8px; padding: 16px; background: #fafafa; display: flex; flex-direction: column; gap: 12px; }
+        .chat-msg { max-width: 80%; padding: 10px 14px; border-radius: 12px; font-size: 0.95rem; line-height: 1.4; word-wrap: break-word; }
+        .user-msg { align-self: flex-end; background: #16a34a; color: white; }
+        .bot-msg { align-self: flex-start; background: #e2e8f0; color: #1e293b; }
+        
+        .quick-actions { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+        .chip { background: #e2e8f0; border: none; padding: 6px 12px; border-radius: 16px; font-size: 0.85rem; cursor: pointer; transition: 0.2s; }
+        .chip:hover { background: #bbf7d0; color: #166534; }
+
+        .input-row { display: flex; gap: 10px; }
+        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; font-size: 0.95rem; }
+        button.send-btn { background: #16a34a; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; }
+        button.send-btn:hover { background: #15803d; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <h1>🌱 Smart Farm AI Assistant</h1>
+        <div class="nav-links">
+            <a href="/dashboard">Dashboard</a>
+            <a href="/chat" class="active">AI Assistant</a>
+        </div>
+    </nav>
+
+    <div class="chat-container">
+        <div class="card">
+            <div id="chat-box">
+                <div class="chat-msg bot-msg">
+                    Hello! I'm your Smart Farm Assistant. You can ask me about water level statistics or instruct me to control hardware directly!
+                </div>
+            </div>
+
+            <!-- Quick Command Chips -->
+            <div class="quick-actions">
+                <button class="chip" onclick="quickSend('What is the current water level?')">💧 Check Water Level</button>
+                <button class="chip" onclick="quickSend('Turn on motor')">▶️ Turn ON Motor</button>
+                <button class="chip" onclick="quickSend('Turn off motor')">⏹️ Turn OFF Motor</button>
+                <button class="chip" onclick="quickSend('Give me farm statistics')">📊 System Stats</button>
+            </div>
+
+            <div class="input-row">
+                <input type="text" id="user-input" placeholder="Type message or instruction..." onkeypress="if(event.key==='Enter') sendMsg()" />
+                <button class="send-btn" onclick="sendMsg()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function sendMsg() {
+            const input = document.getElementById('user-input');
+            const msg = input.value.trim();
+            if (!msg) return;
+
+            const chatBox = document.getElementById('chat-box');
+            chatBox.innerHTML += `<div class="chat-msg user-msg">${escapeHTML(msg)}</div>`;
+            input.value = '';
+
+            const loadingId = 'loading-' + Date.now();
+            chatBox.innerHTML += `<div id="${loadingId}" class="chat-msg bot-msg" style="opacity: 0.6;">Analyzing telemetry & processing...</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: msg })
+                });
+                const data = await res.json();
+                document.getElementById(loadingId).remove();
+
+                chatBox.innerHTML += `<div class="chat-msg bot-msg">
+                    <div>${escapeHTML(data.reply)}</div>
+                    <small style="display:block;margin-top:4px;color:#64748b;font-size:0.7rem;">Powered by ${data.provider}</small>
+                </div>`;
+            } catch (err) {
+                document.getElementById(loadingId).remove();
+                chatBox.innerHTML += `<div class="chat-msg bot-msg" style="color:red;">Failed to get AI response.</div>`;
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function quickSend(text) {
+            document.getElementById('user-input').value = text;
+            sendMsg();
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+        }
+    </script>
+</body>
+</html>

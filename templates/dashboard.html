@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Farm - Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background-color: #f8fafc; color: #1e293b; margin: 0; padding: 0; }
+        
+        .navbar { background: #15803d; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .navbar h1 { margin: 0; font-size: 1.4rem; }
+        .nav-links a { color: #dcfce7; text-decoration: none; margin-left: 20px; font-weight: 600; padding: 6px 12px; border-radius: 6px; }
+        .nav-links a.active, .nav-links a:hover { background: #166534; color: white; }
+
+        .container { max-width: 1200px; margin: 24px auto; padding: 0 20px; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 24px; }
+        
+        .card { background: white; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .card-title { font-size: 0.875rem; color: #64748b; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; }
+        .card-value { font-size: 2rem; font-weight: 700; color: #0f172a; }
+        .card-subtitle { font-size: 0.8rem; color: #94a3b8; margin-top: 4px; }
+
+        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; }
+        .status-running { background: #dcfce7; color: #166534; }
+        .status-stopped { background: #fee2e2; color: #991b1b; }
+
+        .controls { display: flex; gap: 12px; margin-top: 12px; }
+        .btn { flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-start { background: #22c55e; color: white; }
+        .btn-start:hover { background: #16a34a; }
+        .btn-stop { background: #ef4444; color: white; }
+        .btn-stop:hover { background: #dc2626; }
+
+        .chart-container { background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 24px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem; }
+        th { background: #f1f5f9; color: #475569; }
+        td.row-id { font-weight: 700; color: #15803d; width: 60px; }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <h1>🌱 Smart Farm Monitoring</h1>
+        <div class="nav-links">
+            <a href="/dashboard" class="active">Dashboard</a>
+            <a href="/chat">AI Assistant</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Metric Cards Grid -->
+        <div class="grid">
+            <div class="card">
+                <div class="card-title">Live Water Level</div>
+                <div class="card-value" id="water-level">0%</div>
+                <div class="card-subtitle">Updated in real-time</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Stepper Motor State</div>
+                <div style="margin-top: 8px;">
+                    <span id="motor-badge" class="status-badge status-stopped">STOPPED</span>
+                </div>
+                <div class="controls">
+                    <button class="btn btn-start" onclick="triggerControl('ON')">Start Motor</button>
+                    <button class="btn btn-stop" onclick="triggerControl('OFF')">Stop Motor</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Historical Averages</div>
+                <div class="card-value" id="avg-water">0%</div>
+                <div class="card-subtitle" id="min-max-range">Min: 0% | Max: 0%</div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">System Activity</div>
+                <div class="card-value" id="total-logs">0</div>
+                <div class="card-subtitle" id="motor-activations">Auto Starts: 0 | Manual: 0</div>
+            </div>
+        </div>
+
+        <!-- Real-Time Data Graph -->
+        <div class="chart-container">
+            <h3>Water Reservoir History (% Level)</h3>
+            <canvas id="waterChart" height="90"></canvas>
+        </div>
+
+        <!-- Recent Logs Table -->
+        <div class="card">
+            <h3>Recent System Logs</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">#</th>
+                        <th>Timestamp</th>
+                        <th>Water Level (%)</th>
+                        <th>Motor Status</th>
+                        <th>Event Type</th>
+                    </tr>
+                </thead>
+                <tbody id="logs-table-body">
+                    <tr><td colspan="5">Loading data logs...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let chartInstance = null;
+
+        function initChart() {
+            const ctx = document.getElementById('waterChart').getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Water Level (%)',
+                        data: [],
+                        borderColor: '#16a34a',
+                        backgroundColor: 'rgba(22, 163, 74, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { min: 0, max: 100 } }
+                }
+            });
+        }
+
+        async function fetchMetrics() {
+            try {
+                const res = await fetch('/api/metrics');
+                const data = await res.json();
+
+                // Live Updates
+                document.getElementById('water-level').innerText = data.current_water_level + '%';
+                
+                const badge = document.getElementById('motor-badge');
+                badge.innerText = data.motor_status;
+                badge.className = 'status-badge ' + (data.motor_status === 'RUNNING' ? 'status-running' : 'status-stopped');
+
+                // Statistics Updates
+                document.getElementById('avg-water').innerText = data.stats.avg_water_level + '%';
+                document.getElementById('min-max-range').innerText = `Min: ${data.stats.min_water_level}% | Max: ${data.stats.max_water_level}%`;
+                document.getElementById('total-logs').innerText = data.stats.total_logs;
+                document.getElementById('motor-activations').innerText = `Auto Starts: ${data.stats.auto_starts} | Manual: ${data.stats.manual_starts}`;
+
+                // Update Chart and Logs
+                const logs = data.stats.recent_logs;
+                const labels = logs.map(l => l.timestamp.split(' ')[1]);
+                const values = logs.map(l => parseInt(l.water_level_pct));
+
+                chartInstance.data.labels = labels;
+                chartInstance.data.datasets[0].data = values;
+                chartInstance.update();
+
+                // Populate Table with Row Numbers (#)
+                const tbody = document.getElementById('logs-table-body');
+                tbody.innerHTML = logs.slice().reverse().map(l => `
+                    <tr>
+                        <td class="row-id">#${l.id}</td>
+                        <td>${l.timestamp}</td>
+                        <td>${l.water_level_pct}%</td>
+                        <td><strong>${l.motor_status}</strong></td>
+                        <td>${l.event_type}</td>
+                    </tr>
+                `).join('');
+
+            } catch (err) {
+                console.error("Error fetching metrics:", err);
+            }
+        }
+
+        async function triggerControl(action) {
+            await fetch('/api/control', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: action })
+            });
+            fetchMetrics();
+        }
+
+        window.onload = () => {
+            initChart();
+            fetchMetrics();
+            setInterval(fetchMetrics, 5000); // Auto refresh every 5 seconds
+        };
+    </script>
+</body>
+</html>
